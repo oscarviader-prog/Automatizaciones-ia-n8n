@@ -1,0 +1,580 @@
+{
+  "name": "Generación de facturas por voz o texto (Telegram)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Facturas por voz o texto (Telegram)\nDicta o escribe la factura → la IA extrae los datos → busca el cliente en Sheets → rellena una plantilla de Google Docs → la devuelve en PDF por Telegram.\n\nEl tipo de impuesto es configurable (0.07 IGIC Canarias · 0.21 IVA).",
+        "width": 520,
+        "height": 180,
+        "color": 4
+      },
+      "name": "Nota",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -300
+      ],
+      "id": "86af14a3-f1a0-4669-9a4f-24a3e35d7c39"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "acd7dc8a-1b2c-4c82-a315-845cf6a2b74f"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7024c955-4d55-4d7d-ab21-7fd569493ab0",
+              "name": "tipo_impuesto",
+              "value": "0.07",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Configuración",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        200,
+        0
+      ],
+      "id": "b1ae1a49-c236-4543-beef-4dd3ce128214"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "871244a6-3ef8-4ed6-87be-9729450a031c",
+                    "leftValue": "={{ $('Telegram Trigger').item.json.message.text }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Texto"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "d593ab36-206f-4143-8f9e-e1b316c0fd6f",
+                    "leftValue": "={{ $('Telegram Trigger').item.json.message.voice }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "object",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Voz"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "¿Texto o voz?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        400,
+        0
+      ],
+      "id": "86fe4a09-d930-4936-8074-235d1e1249f8"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5fb0c3ca-40dd-46ca-bc09-4ae4444bc1ec",
+              "name": "texto",
+              "value": "={{ $('Telegram Trigger').item.json.message.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Texto recibido",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        640,
+        -80
+      ],
+      "id": "a9562ee9-b3fe-41c9-ae38-f2820a22ee97"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $('Telegram Trigger').item.json.message.voice.file_id }}",
+        "additionalFields": {}
+      },
+      "name": "Descargar audio",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        600,
+        100
+      ],
+      "id": "8f845e92-bb6d-42f9-bfaa-3858bb5075f9"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "name": "Transcribir (Whisper)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        800,
+        100
+      ],
+      "id": "fda22e6b-c480-46c0-b1f9-6cf2714d5aa0"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4b6012c9-6af6-49a8-81e0-18fa0e03cf4c",
+              "name": "texto",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Texto del audio",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1000,
+        100
+      ],
+      "id": "d14ac597-00f5-4543-b9e6-6bd8e3ca0334"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Analiza el mensaje y extrae los datos para crear una factura: empresa cliente, fecha, número de factura, localidad, CIF/NIF, servicio, descripción, cantidad y precio. Devuelve SIEMPRE un JSON con esta estructura:\n\n{\n  \"empresa\": \"\",\n  \"fecha\": \"\",\n  \"factura\": \"\",\n  \"localidad\": \"\",\n  \"cif\": \"\",\n  \"servicio\": \"\",\n  \"descripcion\": \"\",\n  \"precio\": \"\",\n  \"impuesto\": \"\",\n  \"total\": \"\",\n  \"cantidad\": \"\"\n}\n\n- Si no se indica la fecha, usa la actual: {{ $today.format(\"dd/MM/yyyy\") }}\n- \"precio\": solo el número, sin el símbolo €.\n- \"impuesto\": precio × {{ $('Configuración').item.json.tipo_impuesto }}, redondeado a 2 decimales, sin €.\n- \"total\": precio + impuesto, redondeado a 2 decimales, sin €.\n- \"servicio\": 1 o 2 palabras (ej. Automatización, Agente de IA, Sitio web).\n\nMensaje: {{ $json.texto }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Extraer datos con IA",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        1220,
+        -80
+      ],
+      "id": "ce686bba-0323-419a-8e7a-93e5e8931c43"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.output?.[0]?.content?.[0]?.text\n         || $input.first().json.text\n         || $input.first().json.output;\n\nconst content = typeof raw === 'string' ? raw : JSON.stringify(raw);\nconst data = JSON.parse(content);\n\nreturn [{ json: data }];"
+      },
+      "name": "Parsear JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        -80
+      ],
+      "id": "e2ac297e-5c31-4410-b4d5-d9984ff718d7"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "TU_ID_HOJA_CLIENTES",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "id"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Nombre",
+              "lookupValue": "={{ $json.empresa.charAt(0).toUpperCase() + $json.empresa.slice(1) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Buscar cliente en Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1640,
+        -80
+      ],
+      "id": "1b348afa-2de9-4503-aa84-b1e32bbf3324"
+    },
+    {
+      "parameters": {
+        "operation": "copy",
+        "fileId": {
+          "__rl": true,
+          "value": "TU_ID_PLANTILLA_FACTURA",
+          "mode": "id"
+        },
+        "name": "=Factura nº {{ $('Parsear JSON').item.json.factura }} para {{ $json.Nombre }}",
+        "options": {}
+      },
+      "name": "Copiar plantilla",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1840,
+        -80
+      ],
+      "id": "83ccf285-6a3c-4209-858c-e960ca160f0e"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $json.id }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "replaceAll",
+              "text": "{{cif_cliente}}",
+              "replaceText": "={{ $('Buscar cliente en Sheets').item.json.CIF }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{cliente_direccion}}",
+              "replaceText": "={{ $('Buscar cliente en Sheets').item.json['Dirección'] }}, {{ $('Buscar cliente en Sheets').item.json['Población'] }}, {{ $('Buscar cliente en Sheets').item.json['País'] }}, {{ $('Buscar cliente en Sheets').item.json.ZIP }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{correo_cliente}}",
+              "replaceText": "={{ $('Buscar cliente en Sheets').item.json.Email }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{factura}}",
+              "replaceText": "={{ $('Parsear JSON').item.json.factura }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{servicio}}",
+              "replaceText": "={{ $('Parsear JSON').item.json.servicio }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{nº_serv}}",
+              "replaceText": "={{ $('Parsear JSON').item.json.cantidad }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{precio_sin_iva}}",
+              "replaceText": "={{ $('Parsear JSON').item.json.precio }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{iva}}",
+              "replaceText": "={{ $('Parsear JSON').item.json.impuesto }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{precio_total}}",
+              "replaceText": "={{ $('Parsear JSON').item.json.total }}"
+            }
+          ]
+        }
+      },
+      "name": "Rellenar factura",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        2040,
+        -80
+      ],
+      "id": "b14cd9a1-d562-4f26-bb99-c095ef3eb619"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').first().json.message.chat.id }}",
+        "text": "=Factura {{ $('Parsear JSON').item.json.factura }} generada para {{ $('Parsear JSON').item.json.empresa }} ✅",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "name": "Avisar por Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2240,
+        -80
+      ],
+      "id": "6318b0cd-c3aa-4e64-8922-69e6c5c05fac"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('Rellenar factura').item.json.documentId }}",
+          "mode": "id"
+        },
+        "options": {
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "application/pdf"
+            }
+          }
+        }
+      },
+      "name": "Exportar a PDF",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2440,
+        -80
+      ],
+      "id": "dfe28cc1-051f-4792-b32a-1f99bf9604f6"
+    },
+    {
+      "parameters": {
+        "operation": "sendDocument",
+        "chatId": "={{ $('Telegram Trigger').first().json.message.chat.id }}",
+        "binaryData": true,
+        "additionalFields": {}
+      },
+      "name": "Enviar PDF",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2640,
+        -80
+      ],
+      "id": "576dbcab-576e-4e90-84af-365d02b7c1fe"
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Configuración",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuración": {
+      "main": [
+        [
+          {
+            "node": "¿Texto o voz?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Texto recibido": {
+      "main": [
+        [
+          {
+            "node": "Extraer datos con IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar audio": {
+      "main": [
+        [
+          {
+            "node": "Transcribir (Whisper)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribir (Whisper)": {
+      "main": [
+        [
+          {
+            "node": "Texto del audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Texto del audio": {
+      "main": [
+        [
+          {
+            "node": "Extraer datos con IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer datos con IA": {
+      "main": [
+        [
+          {
+            "node": "Parsear JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear JSON": {
+      "main": [
+        [
+          {
+            "node": "Buscar cliente en Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar cliente en Sheets": {
+      "main": [
+        [
+          {
+            "node": "Copiar plantilla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Copiar plantilla": {
+      "main": [
+        [
+          {
+            "node": "Rellenar factura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rellenar factura": {
+      "main": [
+        [
+          {
+            "node": "Avisar por Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Avisar por Telegram": {
+      "main": [
+        [
+          {
+            "node": "Exportar a PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exportar a PDF": {
+      "main": [
+        [
+          {
+            "node": "Enviar PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Texto o voz?": {
+      "main": [
+        [
+          {
+            "node": "Texto recibido",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Descargar audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
